@@ -1,8 +1,6 @@
-# <div align="center">✨Butter✨</div>
+# <div align="center">✨Morphable Heart Model✨</div>
 
-
-> 🏆 **"Crafting A Morphable Heart Model for End-to-end Regression"**.
-
+> **"Crafting A Morphable Heart Model for End-to-end Regression"**.
 
 we construct the first morphable heart model (MHM) via a classical PCA-based shape analysis. To demonstrate the utility of MHM, we build an end-to-end regression network that predicts morphable parameters directly from raw CTA input, analogous to established pipelines in digital human modeling.
 
