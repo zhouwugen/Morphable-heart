@@ -41,27 +41,30 @@ MMWHS
     └── ...
 ```
 
-`Cardiac mesh fitting`
+Cardiac mesh fitting
 
 ```bash
 cd Mesh fitting
 python FourChambers.py
 ```
 
-`Run PCA`
+Run heart PCA model
+
 ```bash
 cd PCA
 python run_pca_model.py
 ```
 The final results of PCA model will be saved under `./PCA/pca_result_color`.
 
-`Pre-training on synthsis data`
+Pre-training on synthsis data
+
 ```bash
 python train.py
 ```
 After training is completed, the best model weights will be saved at `./checkpoint/best.pt`.
 
-`Finetune on real CTA data`
+Finetune on real CTA data
+
 ```bash
 ./finetune.sh
 ```
