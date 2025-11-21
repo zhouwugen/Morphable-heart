@@ -8,7 +8,7 @@ we construct the first morphable heart model (MHM) via a classical PCA-based sha
 
 
 <details open>
-<summary>Install</summary>
+<summary>Installation</summary>
 
 ```bash
 conda create -n morphable-heart python==3.8
