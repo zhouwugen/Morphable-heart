@@ -65,7 +65,7 @@ After training is completed, the best model weights will be saved at `./checkpoi
 ```bash
 ./finetune.sh
 ```
-After finetune is completed, the best model weights will be saved at `./finetune_ckpts/best.pt`.
+After finetune is completed, the best model weights will be saved at `./finetune_ckpts/best.pt`. We will release the training model weights after this paper is accepted.
 
 
 ### Prediction  
