@@ -22,7 +22,7 @@ pip install -r requirements.txt
 <summary>Usage</summary>
 
 ### model training
-`MMWHS` Dataset
+`MMWHS` Dataset, which is a publicly available dataset, and can be downloaded via the following link.
 
 ```bash
 https://zmiclab.github.io/zxh/0/mmwhs/
