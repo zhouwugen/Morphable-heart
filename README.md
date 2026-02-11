@@ -4,7 +4,7 @@
 
 we construct the first morphable heart model (MHM) via a classical PCA-based shape analysis. To demonstrate the utility of MHM, we build an end-to-end regression network that predicts morphable parameters directly from raw CTA input, analogous to established pipelines in digital human modeling.
 
- <img src="Figure/teaser.pdf" width="850" hight="350"> 
+ <pdf src="Figure/teaser.pdf" width="850" hight="350"> 
 
 
 <details open>
