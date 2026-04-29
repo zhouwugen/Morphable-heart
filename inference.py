@@ -1,6 +1,8 @@
 # Compare predicted mesh vs GT mesh in canonical space.
 # Automatically rigid-align (GT → Pred) using Open3D ICP.
+import argparse
 import os
+from pathlib import Path
 import numpy as np
 import torch
 import nibabel as nib
@@ -16,18 +18,19 @@ from scipy.stats import mode
 #                     CONFIG
 # -------------------------------------------------------------
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+REPO_ROOT = Path(__file__).resolve().parent
 
-MEAN_PATH   = "./pca_results_color/mean_shape.npy"
-BASIS_PATH  = "./pca_results_color/pca_components.npy"
-FACES_PATH  = "./pca_results_color/template_faces.npy"
-TEMPLATE_LABEL_PATH = "./pca_results_color/template_labels.npy"
 
-MODEL_WEIGHTS = "../finetune_ckpts/finetune_epoch49.pth"
-
-INPUT_IMG = "./CTAdata/img/ct_train_1009_image.nii.gz"  
-INPUT_MASK = "./CTAdata/seg/ct_train_1009_label.nii.gz"
-GT_MESH = "./CTAdata/mesh/ct_train_1009.obj"
-OUT_OBJ = "./train_1009_pred_fine.obj"
+def resolve_default_pca_dir() -> Path:
+    candidates = [
+        REPO_ROOT / "PCA" / "pca_results",
+        REPO_ROOT / "PCA" / "pca_result_color",
+        REPO_ROOT / "pca_results_color",
+    ]
+    for candidate in candidates:
+        if (candidate / "mean_shape.npy").exists():
+            return candidate
+    return candidates[0]
 
 TARGET_RESOLUTION = 8 #128
 EVAL_CLASSES = [1,2,4,5]
@@ -258,31 +261,74 @@ def rigid_align_icp(gt_verts, gt_faces, pred_verts, pred_faces):
 #                    MAIN
 # -------------------------------------------------------------
 def main():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--pca-dir", type=Path, default=resolve_default_pca_dir())
+    parser.add_argument(
+        "--model-weights",
+        type=Path,
+        default=REPO_ROOT / "finetune_ckpts" / "best.pth",
+    )
+    parser.add_argument(
+        "--input-img",
+        type=Path,
+        default=REPO_ROOT / "CTAdata" / "img" / "ct_train_1009_image.nii.gz",
+    )
+    parser.add_argument(
+        "--input-mask",
+        type=Path,
+        default=REPO_ROOT / "CTAdata" / "seg" / "ct_train_1009_label.nii.gz",
+    )
+    parser.add_argument(
+        "--gt-mesh",
+        type=Path,
+        default=REPO_ROOT / "CTAdata" / "mesh" / "ct_train_1009.obj",
+    )
+    parser.add_argument(
+        "--out-obj",
+        type=Path,
+        default=REPO_ROOT / "train_1009_pred_fine.obj",
+    )
+    parser.add_argument("--target-resolution", type=int, default=TARGET_RESOLUTION)
+    args = parser.parse_args()
+
+    mean_path = args.pca_dir / "mean_shape.npy"
+    basis_path = args.pca_dir / "pca_components.npy"
+    faces_path = args.pca_dir / "template_faces.npy"
+    template_label_path = args.pca_dir / "template_labels.npy"
+
+    if not mean_path.exists():
+        raise FileNotFoundError(f"Missing PCA asset: {mean_path}")
+    if not args.model_weights.exists():
+        raise FileNotFoundError(f"Missing model weights: {args.model_weights}")
+
+    out_obj = str(args.out_obj)
+    gt_mesh = str(args.gt_mesh)
 
     # load PCA basis
-    mean = np.load(MEAN_PATH)
-    comps = np.load(BASIS_PATH)
-    faces = np.load(FACES_PATH)
+    mean = np.load(mean_path)
+    comps = np.load(basis_path)
+    faces = np.load(faces_path)
 
     # load model
     model = CardiacHMR(mean, comps, faces, latent_dim=256)
-    sd = torch.load(MODEL_WEIGHTS,map_location="cpu")
+    sd = torch.load(args.model_weights, map_location="cpu")
     sd = sd["model"] if "model" in sd else sd
     model.load_state_dict(sd,strict=False)
     model.to(DEVICE).eval()
 
     # infer (dummy volume)
-    vol = torch.zeros((1,1,TARGET_RESOLUTION,TARGET_RESOLUTION,TARGET_RESOLUTION),dtype=torch.float32).to(DEVICE)
+    target_resolution = args.target_resolution
+    vol = torch.zeros((1,1,target_resolution,target_resolution,target_resolution),dtype=torch.float32).to(DEVICE)
     with torch.no_grad():
         out = model(vol)
         pred = out["verts"][0].cpu().numpy()
 
     # save pred
-    trimesh.Trimesh(pred,faces,process=False).export(OUT_OBJ)
-    print("Saved pred mesh:", OUT_OBJ)
+    trimesh.Trimesh(pred,faces,process=False).export(out_obj)
+    print("Saved pred mesh:", out_obj)
 
     # load template pred labels
-    tpl = np.load(TEMPLATE_LABEL_PATH).astype(int)
+    tpl = np.load(template_label_path).astype(int)
     if len(tpl)!=len(pred):
         n=min(len(tpl),len(pred))
         tpl, pred = tpl[:n], pred[:n]
@@ -291,13 +337,13 @@ def main():
         F = faces
 
     # load GT mesh + labels
-    gtv, gtf, gtl = load_mesh_labels(GT_MESH)
+    gtv, gtf, gtl = load_mesh_labels(gt_mesh)
     print("GT labels:", np.unique(gtl))
 
     # ---- Load template pred labels ----
     template_labels = None
-    if os.path.exists(TEMPLATE_LABEL_PATH):
-        template_labels = np.load(TEMPLATE_LABEL_PATH)
+    if os.path.exists(template_label_path):
+        template_labels = np.load(template_label_path)
 
         if template_labels.shape[0] != pred.shape[0]:
             min_len = min(template_labels.shape[0], pred.shape[0])
@@ -321,7 +367,7 @@ def main():
 
         color_mesh = trimesh.Trimesh(vertices=pred, faces=F,
                                     vertex_colors=(colors*255).astype(np.uint8), process=False)
-        ply_path = OUT_OBJ.replace(".obj","_colored.obj")
+        ply_path = out_obj.replace(".obj","_colored.obj")
         color_mesh.export(ply_path)
         print(f"✅ Saved colored PLY mesh: {ply_path}")
 
@@ -329,7 +375,7 @@ def main():
     gtv_aligned, T = rigid_align_icp(gtv,gtf,pred,F)
 
     # save aligned GT mesh
-    out_gt_aligned = os.path.splitext(GT_MESH)[0] + "_aligned.obj"
+    out_gt_aligned = os.path.splitext(gt_mesh)[0] + "_aligned.obj"
     trimesh.Trimesh(gtv_aligned,gtf,process=False).export(out_gt_aligned)
     print("Saved aligned GT mesh:", out_gt_aligned)
 
@@ -338,16 +384,16 @@ def main():
     print("Saved transform matrix.")
 
     # ------ canonical voxelization ------
-    bbox_min, bbox_max, pitch = get_bbox_pitch(mean, TARGET_RESOLUTION)
+    bbox_min, bbox_max, pitch = get_bbox_pitch(mean, target_resolution)
 
     print("\nVoxelizing Pred...")
-    mask_pred = voxelize_multiclass(pred,F,tpl,bbox_min,pitch,TARGET_RESOLUTION)
+    mask_pred = voxelize_multiclass(pred,F,tpl,bbox_min,pitch,target_resolution)
 
     print("Voxelizing GT aligned...")
-    mask_gt = voxelize_multiclass(gtv_aligned,gtf,gtl,bbox_min,pitch,TARGET_RESOLUTION)
+    mask_gt = voxelize_multiclass(gtv_aligned,gtf,gtl,bbox_min,pitch,target_resolution)
 
     # save NII
-    nib.save(nib.Nifti1Image(mask_pred.astype(np.uint8),np.eye(4)), OUT_OBJ.replace(".obj","_mask_pred.nii.gz"))
+    nib.save(nib.Nifti1Image(mask_pred.astype(np.uint8),np.eye(4)), out_obj.replace(".obj","_mask_pred.nii.gz"))
     nib.save(nib.Nifti1Image(mask_gt.astype(np.uint8),np.eye(4)), out_gt_aligned.replace(".obj","_mask_gt.nii.gz"))
 
     # ------ Segmentation metrics ------
@@ -376,5 +422,4 @@ def main():
 
 if __name__ == "__main__":
     main()
-
 

@@ -105,12 +105,18 @@ class LaplacianSmoothing(MessagePassing):
         
 
 if __name__ == "__main__":
+    from pathlib import Path
     from pytorch3d.io import load_objs_as_meshes
     B = 2
     device = torch.device("cuda:0")
-    mesh_std = load_objs_as_meshes(['/home/yihao/data/PINN_GCN/data/canonical.obj'],device=device)[0]
+    canonical_obj = (
+        Path(__file__).resolve().parents[1]
+        / "canonical_shapes"
+        / "Standard_BiV.obj"
+    )
+    mesh_std = load_objs_as_meshes([str(canonical_obj)], device=device)[0]
     N = mesh_std.verts_packed().shape[0]
-    meshes_scr = load_objs_as_meshes(['/home/yihao/data/PINN_GCN/data/canonical.obj']*B,device=device)
+    meshes_scr = load_objs_as_meshes([str(canonical_obj)] * B, device=device)
     meshes_scr = meshes_scr.offset_verts(0.005*torch.randn(B*N,3).to(device))
 
 
@@ -124,4 +130,3 @@ if __name__ == "__main__":
 
 
     
-
