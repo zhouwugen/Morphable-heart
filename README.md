@@ -1,14 +1,34 @@
-# <div align="center">✨Morphable Heart Model✨</div>
+# <div align="center">Morphable Heart Model</div>
 
-> **"D-Heart: Toward a Digital Twin of the Heart through a Morphable Heart Model"**.
+This repository accompanies the morphable-heart component of **D-Heart** and
+the released baseline regression model **D-Heart-Reg**.
 
-we construct the first morphable heart model (MHM) via a classical PCA-based shape analysis. To demonstrate the utility of MHM, we build an end-to-end regression network that predicts morphable parameters directly from raw CTA input, analogous to established pipelines in digital human modeling.
+More specifically:
 
- <img src="Figure/teaser.png"> 
+- **D-Heart** refers to the dataset/benchmark, the released CAS
+  template-consistent mesh assets, and the PCA morphable shape space derived
+  from the fitted meshes.
+- **D-Heart-Reg** refers to the regression baseline that predicts morphable parameters / meshes from CTA input.
 
+Current public D-Heart package scope:
 
-<details open>
-<summary>Installation</summary>
+- 1,100 CTA volumes
+- 1,082 released four-chamber labels
+- 1,000 released CAS meshes
+- no per-case public external OBJ meshes
+
+This repository contains:
+
+- the original mesh fitting and PCA construction code,
+- released PCA shape assets for **D-Heart**,
+- baseline training / fine-tuning code for **D-Heart-Reg**, and
+- utilities for rebuilding the released **D-Heart-Reg** pipeline from the public **D-Heart** package.
+
+<p align="center">
+  <img src="Figure/teaser.png" width="900" alt="Morphable Heart teaser">
+</p>
+
+## Installation
 
 ```bash
 conda create -n morphable-heart python==3.8
@@ -16,64 +36,139 @@ conda activate morphable-heart
 pip install -r requirements.txt
 ```
 
-</details>
+## Repository structure
 
-<details open>
-<summary>Usage</summary>
-
-### model training
-`MMWHS` Dataset, which is a publicly available dataset.
-
-```
-MMWHS
-├── img
-│   ├── ct_train_1001_image.nii.gz
-│   ├── ct_train_1002_image.nii.gz
-│   ├── ct_train_1003_image.nii.gz
-│   └── ...
-└── seg
-    ├── ct_train_1001_label.nii.gz
-    ├── ct_train_1002_label.nii.gz
-    ├── ct_train_1003_label.nii.gz
-    └── ...
+```text
+Morphable-heart/
+├── Mesh fitting/                # canonical mesh fitting utilities
+├── PCA/
+│   ├── pca_result_color/        # original PCA assets / legacy layout for the D-Heart shape model
+│   └── pca_results/             # released PCA assets used by D-Heart-Reg reproduction
+├── scripts/                     # reproducibility scripts for running D-Heart-Reg on the released D-Heart package
+├── train.py                     # original synthetic pretraining entry for D-Heart-Reg
+├── finetune.py                  # original fine-tuning entry for D-Heart-Reg
+├── inference.py                 # prediction / evaluation demo entry for D-Heart-Reg
+└── synth_data.py                # synthetic data generation helper
 ```
 
-Cardiac mesh fitting
+## PCA construction
+
+### Original PCA workflow
+
+Cardiac mesh fitting:
 
 ```bash
-cd Mesh fitting
+cd "Mesh fitting"
 python FourChambers.py
 ```
 
-Run heart PCA model
+Run PCA:
 
 ```bash
 cd PCA
 python run_pca_model.py
 ```
-The final results of PCA model will be saved under `./PCA/pca_result_color`.
 
-Pre-training on synthsis data
+The original PCA outputs are written under `PCA/pca_result_color/`.
+
+### Rebuilding PCA assets from the released D-Heart package
+
+If you have the released **D-Heart** dataset package available locally, you can
+rebuild the PCA assets used by the released **D-Heart-Reg** pipeline from the
+public CAS mesh subset:
+
+```bash
+python scripts/rebuild_pca_assets_from_cta1100.py \
+  --mesh-dir /path/to/CTA1100/mesh_1000 \
+  --out-dir ./PCA/pca_results
+```
+
+The rebuilt assets include:
+
+- `mean_shape.npy`
+- `pca_components.npy`
+- `pca_eigenvalues.npy`
+- `template_faces.npy`
+- `template_labels.npy`
+- `mean.obj`
+
+## Synthetic data generation and D-Heart-Reg training
+
+### Original lightweight workflow
+
+Generate synthetic samples:
+
+```bash
+python synth_data.py --pca-dir ./PCA/pca_results --save-dir ./synthetic --num 10000
+```
+
+Pre-train:
 
 ```bash
 python train.py
 ```
-After training is completed, the best model weights will be saved at `./checkpoint/best.pt`.
 
-Finetune on real CTA data
+Fine-tune:
 
 ```bash
 ./finetune.sh
 ```
-After finetune is completed, the best model weights will be saved at `./finetune_ckpts/best.pt`. We will release the training model weights after this paper is accepted.
 
+### Released D-Heart-Reg reconstruction pipeline
 
-### Prediction  
-`MMWHS` Dataset
+The `scripts/` directory contains a more explicit reproduction pipeline for **D-Heart-Reg** on top of the released **D-Heart** package:
+
+1. rebuild PCA assets from released D-Heart meshes,
+2. generate synthetic PCA samples,
+3. pre-train on synthetic data,
+4. fine-tune on CAS, and
+5. evaluate on the currently released external labeled subset.
+
+Example:
 
 ```bash
-python inference.py
+python scripts/generate_synthetic_dataset_from_pca.py \
+  --pca-dir ./PCA/pca_results \
+  --out-dir ./runs/dheart_reg_rebuild/synthetic \
+  --num-cases 10000
+
+python scripts/train_pretrain_from_synthetic.py \
+  --data-dir ./runs/dheart_reg_rebuild/synthetic \
+  --pca-dir ./PCA/pca_results \
+  --save-dir ./runs/dheart_reg_rebuild/pretrain_ckpts
 ```
 
-Here, the `predicted cardiac mesh` regressed from finetune model, located at `OUT_OBJ`, where `train_1009_pred_fine.obj` and `train_1009_pred_fine_colored.obj` should be saved. And the reconstruction error and segmentation evaluation will be displayed on terminal. 
+For the full staged pipeline, see:
 
+- `scripts/nohup_rebuild_pipeline.sh`
+- `scripts/launch_full_rebuild_background.sh`
+
+These scripts intentionally use relative or environment-configurable paths so they can be adapted to different local setups without editing source code.
+
+## Inference / demo evaluation
+
+`inference.py` is kept as a small demo-style entry point for **D-Heart-Reg**. It now accepts explicit CLI arguments instead of relying on hard-coded local paths.
+
+Example:
+
+```bash
+python inference.py \
+  --pca-dir ./PCA/pca_results \
+  --model-weights ./finetune_ckpts/best.pth \
+  --gt-mesh /path/to/example.obj \
+  --out-obj ./prediction.obj
+```
+
+The script reports mesh and voxelized-mask metrics and writes:
+
+- predicted mesh,
+- colored predicted mesh,
+- aligned reference mesh,
+- voxelized prediction / reference masks.
+
+## Notes
+
+- This repository does **not** bundle private local datasets.
+- Training checkpoints are not assumed to exist by default; users should supply their own checkpoint paths.
+- The released `PCA/pca_results/` assets correspond to the released **D-Heart** morphable shape space.
+- The `scripts/` directory is the recommended starting point for reproducing the public **D-Heart-Reg** baseline on the released **D-Heart** package.
