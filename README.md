@@ -10,11 +10,17 @@ More specifically:
   from the fitted meshes.
 - **D-Heart-Reg** refers to the regression baseline that predicts morphable parameters / meshes from CTA input.
 
+Benchmark-level D-Heart cohort configuration:
+
+- 1,100 CTA volumes
+- CAS 1,000 / MMWHS 60 / WHS++ 40
+
 Current public D-Heart package scope:
 
 - 1,100 CTA volumes
 - 1,082 released four-chamber labels
 - 1,000 released CAS meshes
+- the remaining 18 MMWHS labels are reserved for a later release update
 - no per-case public external OBJ meshes
 
 This repository contains:
