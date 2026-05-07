@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
-CTA_ROOT="${CTA_ROOT:-$(cd "$ROOT/.." && pwd)/CTA1100}"
+CTA_ROOT="${CTA_ROOT:-}"
 PY_TRAIN="${PY_TRAIN:-python}"
 PY_PRE="${PY_PRE:-$PY_TRAIN}"
 RUN_NAME="${RUN_NAME:-dheart_reg_rebuild}"
@@ -13,10 +13,21 @@ mkdir -p "$LOG_DIR"
 cd "$ROOT"
 export PYTHONUNBUFFERED=1
 
+if [[ -z "$CTA_ROOT" ]]; then
+  echo "[Error] CTA_ROOT is not set. Set CTA_ROOT to the local D-Heart dataset root before running this pipeline." >&2
+  echo "        Example: CTA_ROOT=./D-Heart bash scripts/nohup_rebuild_pipeline.sh" >&2
+  exit 2
+fi
+if [[ ! -d "$CTA_ROOT" ]]; then
+  echo "[Error] CTA_ROOT does not exist: $CTA_ROOT" >&2
+  exit 2
+fi
+
 SMOKE_MODE="${SMOKE_MODE:-0}"
 GPU_ID="${GPU_ID:-0}"
 export CUDA_VISIBLE_DEVICES="$GPU_ID"
 echo "[Info] CUDA_VISIBLE_DEVICES=$CUDA_VISIBLE_DEVICES"
+echo "[Info] CTA_ROOT=$CTA_ROOT"
 echo "[Info] RUN_ROOT=$RUN_ROOT"
 if [[ "$SMOKE_MODE" == "1" ]]; then
   SYNTH_CASES=256
@@ -30,7 +41,7 @@ else
   SYNTH_CASES=10000
   PRETRAIN_EPOCHS=20
   PRETRAIN_LIMIT=0
-  FINETUNE_EPOCHS=20
+  FINETUNE_EPOCHS=50
   FINETUNE_LIMIT=0
   EXTERNAL_LIMIT=0
   NUM_WORKERS=4
@@ -64,14 +75,13 @@ echo "[Stage 3] Pretrain from synthetic data"
 echo "[Stage 4] Finetune on CTA1100 CAS"
 "$PY_TRAIN" -u "$ROOT/scripts/finetune_cta1100_cas.py" \
   --image-dir "$CTA_ROOT/img_1000" \
-  --seg-dir "$CTA_ROOT/seg_1000" \
   --mesh-dir "$CTA_ROOT/mesh_1000" \
   --pca-dir "$ROOT/PCA/pca_results" \
   --pretrain-ckpt "$RUN_ROOT/pretrain_ckpts/best.pth" \
   --save-dir "$RUN_ROOT/finetune_ckpts" \
   --epochs "$FINETUNE_EPOCHS" \
   --batch-size 4 \
-  --lr 1e-5 \
+  --lr 1e-6 \
   --num-workers "$NUM_WORKERS" \
   --limit "$FINETUNE_LIMIT"
 

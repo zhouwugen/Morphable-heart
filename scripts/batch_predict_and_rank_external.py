@@ -75,14 +75,23 @@ def save_mid_slice_png(image_3d: np.ndarray, out_path: Path) -> None:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    cta_root = repo_root.parent / "CTA1100"
     default_pca_dir = repo_root / "PCA" / "pca_results"
     default_ckpt = repo_root / "runs" / "dheart_reg_rebuild" / "finetune_ckpts" / "best.pth"
     default_out_dir = repo_root / "runs" / "dheart_reg_rebuild" / "external_predictions"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--image-dir", type=Path, default=cta_root / "img_100")
-    parser.add_argument("--seg-dir", type=Path, default=cta_root / "seg_100")
+    parser.add_argument(
+        "--image-dir",
+        type=Path,
+        required=True,
+        help="Directory containing external CTA images, e.g. <case_id>_image.nii.gz.",
+    )
+    parser.add_argument(
+        "--seg-dir",
+        type=Path,
+        required=True,
+        help="Directory containing external four-chamber labels for evaluation/ranking.",
+    )
     parser.add_argument("--pca-dir", type=Path, default=default_pca_dir)
     parser.add_argument("--ckpt", type=Path, default=default_ckpt)
     parser.add_argument("--out-dir", type=Path, default=default_out_dir)
@@ -152,6 +161,8 @@ def main() -> None:
 
         with torch.no_grad():
             out = model(volume)
+        # Auxiliary mask-head output for quick sanity/ranking only. The reported
+        # D-Heart-Reg reconstruction objective does not use mask supervision.
         pred_mask_prob = out["mask"][0, 0].detach().cpu().numpy()
         pred_mask = (pred_mask_prob >= args.mask_threshold).astype(np.uint8)
         pred_verts = out["verts"][0].detach().cpu().numpy()

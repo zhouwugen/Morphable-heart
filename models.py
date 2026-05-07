@@ -72,6 +72,8 @@ class CardiacHMR(nn.Module):
     def __init__(self, mean_vertices, basis, faces, latent_dim=256, mask_out_shape=(64,64,64)):
         super().__init__()
         self.encoder = Simple3DEncoder(latent_dim)
+        # Auxiliary mask output for visualization/sanity checks only.
+        # It is not used in the reported D-Heart-Reg training objective.
         self.mask_head = MaskDecoder3D(latent_dim,mask_out_shape)
         self.decoder = PCADecoder(mean_vertices,basis)
         self.faces = torch.from_numpy(faces).long()

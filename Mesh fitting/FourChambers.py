@@ -137,7 +137,11 @@ def rigid_register_whole_template_to_points(paraheart_list, target_pcl_np, sampl
     return param_dict
 
 
-save_dir = "../cardiac mesh"
+dataset_root = os.environ.get("DHEART_ROOT")
+if not dataset_root:
+    raise RuntimeError("Set DHEART_ROOT to the local CTA dataset root before running FourChambers.py")
+
+save_dir = os.environ.get("MESH_OUT_DIR", "../cardiac mesh")
 os.makedirs(save_dir, exist_ok=True)
 
 base_shape_path = './canonical_shapes/Standard_LV_4055.obj'
@@ -151,7 +155,7 @@ cfg = GHD_config(base_shape_path=base_shape_path,
 
 device = cfg.device
 
-dataset = CTADataset3D(dataset_path='path/to/your/CTAdata', mode='train', simple_mode='4chambers',
+dataset = CTADataset3D(dataset_path=dataset_root, mode='train', simple_mode='4chambers',
                        output_shape=(256, 256, 256), load_cache = True)
 
 lv_path = './canonical_shapes/LV.obj'
@@ -375,4 +379,3 @@ for i, example in enumerate(tqdm(dataloader, desc="Processing hearts", ncols=100
         print(f"✅ Save sucessfully: {save_path}")
     else:
         print(f"❌ Without valid mesh，skip saving {save_path}")
-

@@ -15,7 +15,8 @@ PID_FILE="$LOG_DIR/full_rebuild_background_${STAMP}.pid"
 
 cd "$ROOT"
 
-setsid bash -lc "export GPU_ID='$GPU_ID' SMOKE_MODE='$SMOKE_MODE' RUN_NAME='$RUN_NAME'; bash '$ROOT/scripts/nohup_rebuild_pipeline.sh'" \
+setsid env GPU_ID="$GPU_ID" SMOKE_MODE="$SMOKE_MODE" RUN_NAME="$RUN_NAME" CTA_ROOT="${CTA_ROOT:-}" \
+  bash "$ROOT/scripts/nohup_rebuild_pipeline.sh" \
   > "$LOG_FILE" 2>&1 < /dev/null &
 RUN_PID=$!
 echo "$RUN_PID" > "$PID_FILE"

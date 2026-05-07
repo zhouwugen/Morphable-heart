@@ -85,7 +85,7 @@ public CAS mesh subset:
 
 ```bash
 python scripts/rebuild_pca_assets_from_cta1100.py \
-  --mesh-dir /path/to/CTA1100/mesh_1000 \
+  --mesh-dir "$DHEART_ROOT/mesh_1000" \
   --out-dir ./PCA/pca_results
 ```
 
@@ -98,7 +98,18 @@ The rebuilt assets include:
 - `template_labels.npy`
 - `mean.obj`
 
+By default, `scripts/rebuild_pca_assets_from_cta1100.py` uses
+`--n-components 0.98`, i.e. it keeps the PCA components selected by the 98%
+retained-variance criterion. The released `PCA/pca_results/` asset currently
+contains 119 components. Visualizations of PC1--PC4 are compactness/shape-mode
+summaries only; D-Heart-Reg uses the retained released basis unless a smaller
+PCA asset is explicitly rebuilt.
+
 ## Synthetic data generation and D-Heart-Reg training
+
+The reported D-Heart-Reg objective follows the paper: vertex reconstruction
+loss plus a raw PCA-coefficient L2 regularizer. Segmentation-mask supervision
+is not used for the reported reconstruction baseline.
 
 ### Original lightweight workflow
 
@@ -126,8 +137,8 @@ The `scripts/` directory contains a more explicit reproduction pipeline for **D-
 
 1. rebuild PCA assets from released D-Heart meshes,
 2. generate synthetic PCA samples,
-3. pre-train on synthetic data,
-4. fine-tune on CAS, and
+3. optionally warm-start on synthetic mesh samples,
+4. fine-tune on CAS with vertex loss + coefficient prior, and
 5. evaluate on the currently released external labeled subset.
 
 Example:
@@ -142,6 +153,15 @@ python scripts/train_pretrain_from_synthetic.py \
   --data-dir ./runs/dheart_reg_rebuild/synthetic \
   --pca-dir ./PCA/pca_results \
   --save-dir ./runs/dheart_reg_rebuild/pretrain_ckpts
+
+python scripts/finetune_cta1100_cas.py \
+  --image-dir "$DHEART_ROOT/img_1000" \
+  --mesh-dir "$DHEART_ROOT/mesh_1000" \
+  --pca-dir ./PCA/pca_results \
+  --pretrain-ckpt ./runs/dheart_reg_rebuild/pretrain_ckpts/best.pth \
+  --save-dir ./runs/dheart_reg_rebuild/finetune_ckpts \
+  --epochs 50 \
+  --lr 1e-6
 ```
 
 For the full staged pipeline, see:
@@ -150,10 +170,14 @@ For the full staged pipeline, see:
 - `scripts/launch_full_rebuild_background.sh`
 
 These scripts intentionally use relative or environment-configurable paths so they can be adapted to different local setups without editing source code.
+Set `DHEART_ROOT` for one-off commands or `CTA_ROOT` for the staged shell
+pipeline; neither variable is hard-coded by the repository.
 
 ## Inference / demo evaluation
 
 `inference.py` is kept as a small demo-style entry point for **D-Heart-Reg**. It now accepts explicit CLI arguments instead of relying on hard-coded local paths.
+Any mask output from the network is an auxiliary sanity-check output and is
+not part of the reported reconstruction objective.
 
 Example:
 
@@ -161,16 +185,17 @@ Example:
 python inference.py \
   --pca-dir ./PCA/pca_results \
   --model-weights ./finetune_ckpts/best.pth \
-  --gt-mesh /path/to/example.obj \
+  --input-img "$DHEART_ROOT/img_1000/CAS_0001_image.nii.gz" \
+  --gt-mesh "$DHEART_ROOT/mesh_1000/CAS_0001.obj" \
   --out-obj ./prediction.obj
 ```
 
-The script reports mesh and voxelized-mask metrics and writes:
+The script reports mesh metrics and writes:
 
 - predicted mesh,
 - colored predicted mesh,
 - aligned reference mesh,
-- voxelized prediction / reference masks.
+- optional auxiliary mask arrays for sanity checks.
 
 ## Notes
 

@@ -16,7 +16,7 @@ if str(REPO_ROOT) not in sys.path:
 
 from dataset import CardiacCTDataset, collate_fn
 from models import CardiacHMR
-from utils import mask_loss_bce, pca_prior_loss, vertex_l2_loss
+from utils import pca_prior_loss, vertex_l2_loss
 
 
 def find_latest_checkpoint(ckpt_dir: Path) -> Path | None:
@@ -37,11 +37,9 @@ def train_one_epoch(model: CardiacHMR, loader: DataLoader, opt: optim.Optimizer,
     for batch in loader:
         vol = batch["volume"].to(device)
         mesh_gt = batch["mesh_gt"].to(device)
-        mask_gt = batch["mask"].to(device)
 
         out = model(vol)
         loss = 1.0 * vertex_l2_loss(out["verts"], mesh_gt)
-        loss = loss + 1.0 * mask_loss_bce(out["mask"], mask_gt)
         loss = loss + 0.01 * pca_prior_loss(out["coeff"])
 
         opt.zero_grad()

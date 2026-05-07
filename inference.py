@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import numpy as np
 import torch
+import torch.nn.functional as F
 import nibabel as nib
 import trimesh
 import open3d as o3d
@@ -271,22 +272,25 @@ def main():
     parser.add_argument(
         "--input-img",
         type=Path,
-        default=REPO_ROOT / "CTAdata" / "img" / "ct_train_1009_image.nii.gz",
+        required=True,
+        help="Input CTA image in NIfTI format.",
     )
     parser.add_argument(
         "--input-mask",
         type=Path,
-        default=REPO_ROOT / "CTAdata" / "seg" / "ct_train_1009_label.nii.gz",
+        default=None,
+        help="Optional reference mask path kept for compatibility with older demos.",
     )
     parser.add_argument(
         "--gt-mesh",
         type=Path,
-        default=REPO_ROOT / "CTAdata" / "mesh" / "ct_train_1009.obj",
+        required=True,
+        help="Reference mesh used for demo evaluation.",
     )
     parser.add_argument(
         "--out-obj",
         type=Path,
-        default=REPO_ROOT / "train_1009_pred_fine.obj",
+        default=Path("prediction.obj"),
     )
     parser.add_argument("--target-resolution", type=int, default=TARGET_RESOLUTION)
     args = parser.parse_args()
@@ -300,6 +304,10 @@ def main():
         raise FileNotFoundError(f"Missing PCA asset: {mean_path}")
     if not args.model_weights.exists():
         raise FileNotFoundError(f"Missing model weights: {args.model_weights}")
+    if not args.input_img.exists():
+        raise FileNotFoundError(f"Missing input CTA image: {args.input_img}")
+    if not args.gt_mesh.exists():
+        raise FileNotFoundError(f"Missing reference mesh: {args.gt_mesh}")
 
     out_obj = str(args.out_obj)
     gt_mesh = str(args.gt_mesh)
@@ -316,9 +324,17 @@ def main():
     model.load_state_dict(sd,strict=False)
     model.to(DEVICE).eval()
 
-    # infer (dummy volume)
+    # Infer from the provided CTA volume.
     target_resolution = args.target_resolution
-    vol = torch.zeros((1,1,target_resolution,target_resolution,target_resolution),dtype=torch.float32).to(DEVICE)
+    image = nib.load(args.input_img).get_fdata().astype(np.float32)
+    image = (image - image.min()) / (image.max() - image.min() + 1e-8)
+    vol = torch.from_numpy(image).float().unsqueeze(0).unsqueeze(0)
+    vol = F.interpolate(
+        vol,
+        size=(target_resolution, target_resolution, target_resolution),
+        mode="trilinear",
+        align_corners=False,
+    ).to(DEVICE)
     with torch.no_grad():
         out = model(vol)
         pred = out["verts"][0].cpu().numpy()
@@ -422,4 +438,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

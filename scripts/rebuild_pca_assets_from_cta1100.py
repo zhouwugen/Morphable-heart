@@ -50,15 +50,36 @@ def map_colors_to_labels(colors: np.ndarray) -> np.ndarray:
     return labels
 
 
+def parse_n_components(value: str) -> int | float:
+    """Accept either an integer component count or a retained-variance fraction."""
+    numeric = float(value)
+    if 0.0 < numeric < 1.0:
+        return numeric
+    if numeric >= 1.0 and numeric.is_integer():
+        return int(numeric)
+    raise argparse.ArgumentTypeError(
+        "--n-components must be an integer count or a float in (0, 1)"
+    )
+
+
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    default_mesh_dir = repo_root.parent / "CTA1100" / "mesh_1000"
     default_out_dir = repo_root / "PCA" / "pca_results"
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--mesh-dir", type=Path, default=default_mesh_dir)
+    parser.add_argument(
+        "--mesh-dir",
+        type=Path,
+        required=True,
+        help="Directory containing released CAS template-consistent OBJ meshes.",
+    )
     parser.add_argument("--out-dir", type=Path, default=default_out_dir)
-    parser.add_argument("--n-components", type=float, default=0.98)
+    parser.add_argument(
+        "--n-components",
+        type=parse_n_components,
+        default=0.98,
+        help="Integer component count or retained-variance fraction. Default 0.98 retains 98%% variance.",
+    )
     args = parser.parse_args()
 
     mesh_dir = args.mesh_dir
@@ -126,9 +147,12 @@ def main() -> None:
         "num_meshes": len(obj_files),
         "num_vertices": int(mean_real.shape[0]),
         "num_faces": int(faces_ref.shape[0]),
+        "n_components_setting": args.n_components,
+        "num_components": int(components_norm.shape[0]),
         "explained_variance_ratio_top4": [
             float(x) for x in pca.explained_variance_ratio_[:4]
         ],
+        "cumulative_variance_ratio_top4": float(np.sum(pca.explained_variance_ratio_[:4])),
         "global_mean_scale": mean_scale,
         "pca_basis_saved_in_real_world_scale": True,
     }

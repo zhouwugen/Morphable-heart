@@ -113,7 +113,6 @@ def collate(batch: list[dict[str, object]]) -> dict[str, object]:
 
 def main() -> None:
     repo_root = Path(__file__).resolve().parents[1]
-    cta_root = repo_root.parent / "CTA1100"
     default_pca_dir = repo_root / "PCA" / "pca_results"
     default_ckpt = repo_root / "runs" / "dheart_reg_rebuild" / "finetune_ckpts" / "best.pth"
 
@@ -161,6 +160,8 @@ def main() -> None:
             volume = batch["volume"].to(device)
             gt_masks = batch["gt_mask"].cpu().numpy()[:, 0]
             out = model(volume)
+            # Auxiliary mask-head output for quick sanity/ranking only. The
+            # reported D-Heart-Reg objective does not use mask supervision.
             pred_prob = out["mask"][:, 0].detach().cpu().numpy()
             pred_masks = (pred_prob >= args.mask_threshold).astype(np.uint8)
             for case_id, pred_mask, gt_mask in zip(batch["case_ids"], pred_masks, gt_masks, strict=True):

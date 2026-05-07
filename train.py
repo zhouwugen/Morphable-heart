@@ -3,7 +3,7 @@ import torch, torch.optim as optim
 from torch.utils.data import DataLoader
 from dataset import CardiacCTDataset, collate_fn
 from models import CardiacHMR
-from utils import vertex_l2_loss, mask_loss_bce, pca_prior_loss
+from utils import vertex_l2_loss, pca_prior_loss
 import numpy as np
 
 
@@ -16,8 +16,6 @@ def train_one_epoch(model, loader, opt, device):
         loss = 0
         if "mesh_gt" in batch:
             loss += 1.0 * vertex_l2_loss(out["verts"], batch["mesh_gt"].to(device))
-        if "mask" in batch:
-            loss += 1.0 * mask_loss_bce(out["mask"], batch["mask"].to(device))
         loss += 0.01 * pca_prior_loss(out["coeff"])
         opt.zero_grad()
         loss.backward()
@@ -55,14 +53,15 @@ def main():
     # =====================
     ckpt_dir = "./checkpoints"
     os.makedirs(ckpt_dir, exist_ok=True)
+    last_ckpt_path = os.path.join(ckpt_dir, "last.pth")
 
     # =====================
     # Resume if checkpoint exists
     # =====================
     start_epoch = 0
-    if os.path.exists(ckpt_path):
-        print(f"Loading checkpoint from {ckpt_path} ...")
-        checkpoint = torch.load(ckpt_path, map_location=device)
+    if os.path.exists(last_ckpt_path):
+        print(f"Loading checkpoint from {last_ckpt_path} ...")
+        checkpoint = torch.load(last_ckpt_path, map_location=device)
         model.load_state_dict(checkpoint["model"])
         opt.load_state_dict(checkpoint["optimizer"])
         start_epoch = checkpoint["epoch"] + 1
@@ -81,8 +80,11 @@ def main():
             {"epoch": e, "model": model.state_dict(), "optimizer": opt.state_dict()},
             ckpt_path,
         )
+        torch.save(
+            {"epoch": e, "model": model.state_dict(), "optimizer": opt.state_dict()},
+            last_ckpt_path,
+        )
 
 
 if __name__ == "__main__":
     main()
-

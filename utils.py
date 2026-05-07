@@ -2,7 +2,6 @@ import torch, torch.nn.functional as F
 
 
 def vertex_l2_loss(pred,gt): return F.mse_loss(pred,gt)
-def mask_loss_ce(pred,gt): return F.cross_entropy(pred,gt)
 def pca_prior_loss(coeff): return torch.mean(coeff**2)
 
 
@@ -141,4 +140,3 @@ def get_4chamberview_frame(vol, mask, spacing=None):
     mask_aligned = F.grid_sample(mask_float, new, mode='nearest', padding_mode='border')
 
     return vol_aligned, mask_aligned, affine_mat
-
