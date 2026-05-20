@@ -18,10 +18,19 @@ Benchmark-level D-Heart cohort configuration:
 Current public D-Heart package scope:
 
 - 1,100 CTA volumes
-- 1,082 released four-chamber labels
+- 1,100 released four-chamber labels
 - 1,000 released CAS meshes
-- the remaining 18 MMWHS labels are reserved for a later release update
 - no per-case public external OBJ meshes
+
+## Update
+
+**May 18, 2026:** At the initial submission release one week earlier, the
+public D-Heart package contained all **1,100 CTA volumes** but only **1,082
+released four-chamber labels**. In that release, **42 of the 60 MMWHS labels**
+were public. We have now added the remaining **18 MMWHS labels**, completing
+the MMWHS label release (**60/60**) and bringing the public D-Heart package to
+**1,100 released labels** in total. The reproduction scripts can therefore use
+the full 100-case external labeled subset (`60 MMWHS + 40 WHS++`).
 
 This repository contains:
 
@@ -139,7 +148,7 @@ The `scripts/` directory contains a more explicit reproduction pipeline for **D-
 2. generate synthetic PCA samples,
 3. optionally warm-start on synthetic mesh samples,
 4. fine-tune on CAS with vertex loss + coefficient prior, and
-5. evaluate on the currently released external labeled subset.
+5. evaluate on the full currently released 100-case external labeled subset.
 
 Example:
 
