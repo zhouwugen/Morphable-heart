@@ -1,52 +1,51 @@
 # <div align="center">Morphable Heart Model</div>
 
-This repository accompanies the morphable-heart component of **D-Heart** and
-the released baseline regression model **D-Heart-Reg**.
+This repository provides the public implementation and morphable-model assets
+for **D-Heart** and its reference reconstruction baseline,
+**D-Heart-Reg**.
 
-More specifically:
+- **D-Heart** is a CTA dataset and benchmark for template-consistent,
+  template-index four-region heart reconstruction.
+- **D-Heart-Reg** is a PCA-native regression baseline that maps a complete
+  stored CTA array to raw PCA scores and a centred, fixed-topology mesh.
 
-- **D-Heart** refers to the dataset/benchmark, the released CAS
-  template-consistent mesh assets, and the PCA morphable shape space derived
-  from the fitted meshes.
-- **D-Heart-Reg** refers to the regression baseline that predicts morphable parameters / meshes from CTA input.
+## D-Heart release scope
 
-Benchmark-level D-Heart cohort configuration:
+The D-Heart package contains:
 
-- 1,100 CTA volumes
-- CAS 1,000 / MMWHS 60 / WHS++ 40
+- **1,100 source-named CTA entries**: 1,000 CAS, 60 MMWHS, and 40 WHS++;
+- **1,100 expert-reviewed four-region labels**;
+- **1,000 released CAS template-consistent meshes**;
+- a CAS-only PCA morphable shape model; and
+- manifests, coordinate metadata, configurations, hashes, and verification
+  records for benchmark use.
 
-Current public D-Heart package scope:
+The 100 external source aliases correspond to 80 primary unique label targets
+after identity accounting. Primary statistical evaluation should follow the
+released unique-target manifest and representative-alias rule. Per-case
+external OBJ meshes are not publicly redistributed; source-governed access and
+regeneration follow the data package documentation.
 
-- 1,100 CTA volumes
-- 1,100 released four-chamber labels
-- 1,000 released CAS meshes
-- no per-case public external OBJ meshes
+- **Dataset:** [D-Heart release on Harvard Dataverse](https://dataverse.harvard.edu/previewurl.xhtml?token=014c4eea-bba5-4fbb-a5e5-550d87f31bab)
+- **Code:** [Morphable-heart on GitHub](https://github.com/zhouwugen/Morphable-heart)
 
-## Update
+This repository includes:
 
-**May 18, 2026:** At the initial submission release one week earlier, the
-public D-Heart package contained all **1,100 CTA volumes** but only **1,082
-released four-chamber labels**. In that release, **42 of the 60 MMWHS labels**
-were public. We have now added the remaining **18 MMWHS labels**, completing
-the MMWHS label release (**60/60**) and bringing the public D-Heart package to
-**1,100 released labels** in total. The reproduction scripts can therefore use
-the full 100-case external labeled subset (`60 MMWHS + 40 WHS++`).
-
-This repository contains:
-
-- the original mesh fitting and PCA construction code,
-- released PCA shape assets for **D-Heart**,
-- baseline training / fine-tuning code for **D-Heart-Reg**, and
-- utilities for rebuilding the released **D-Heart-Reg** pipeline from the public **D-Heart** package.
+- mesh-fitting and PCA-construction utilities;
+- released PCA assets for the D-Heart morphable shape space;
+- synthetic initialization, training, fine-tuning, and inference code for
+  D-Heart-Reg; and
+- scripts for rebuilding the public D-Heart-Reg pipeline from the D-Heart
+  package.
 
 <p align="center">
-  <img src="Figure/teaser.png" width="900" alt="Morphable Heart teaser">
+  <img src="Figure/teaser.png" width="900" alt="D-Heart morphable model and reconstruction pipeline">
 </p>
 
 ## Installation
 
 ```bash
-conda create -n morphable-heart python==3.8
+conda create -n morphable-heart python=3.8
 conda activate morphable-heart
 pip install -r requirements.txt
 ```
@@ -55,42 +54,49 @@ pip install -r requirements.txt
 
 ```text
 Morphable-heart/
-├── Mesh fitting/                # canonical mesh fitting utilities
+├── Mesh fitting/                # canonical mesh-fitting utilities
 ├── PCA/
-│   ├── pca_result_color/        # original PCA assets / legacy layout for the D-Heart shape model
-│   └── pca_results/             # released PCA assets used by D-Heart-Reg reproduction
-├── scripts/                     # reproducibility scripts for running D-Heart-Reg on the released D-Heart package
-├── train.py                     # original synthetic pretraining entry for D-Heart-Reg
-├── finetune.py                  # original fine-tuning entry for D-Heart-Reg
-├── inference.py                 # prediction / evaluation demo entry for D-Heart-Reg
-└── synth_data.py                # synthetic data generation helper
+│   ├── pca_result_color/        # PCA construction outputs and legacy layout
+│   └── pca_results/             # released PCA assets used by D-Heart-Reg
+├── scripts/                     # staged rebuild and reproduction scripts
+├── train.py                     # synthetic initialization entry point
+├── finetune.py                  # real-CTA fine-tuning entry point
+├── inference.py                 # prediction and demo evaluation
+└── synth_data.py                # synthetic PCA-sample generation
 ```
 
-## PCA construction
+## Data setup
 
-### Original PCA workflow
+Set the local D-Heart package root before running the examples:
 
-Cardiac mesh fitting:
+```bash
+export DHEART_ROOT=/path/to/D-Heart
+```
+
+The commands below expect the released CAS images and meshes at
+`$DHEART_ROOT/img_1000` and `$DHEART_ROOT/mesh_1000`. External paths and
+manifest locations are supplied to the staged evaluation scripts through
+arguments or environment variables; no private local path is hard-coded.
+
+## Mesh fitting and PCA construction
+
+Run the mesh-fitting utility:
 
 ```bash
 cd "Mesh fitting"
 python FourChambers.py
 ```
 
-Run PCA:
+Run the PCA utility:
 
 ```bash
 cd PCA
 python run_pca_model.py
 ```
 
-The original PCA outputs are written under `PCA/pca_result_color/`.
+PCA construction outputs are written under `PCA/pca_result_color/`.
 
-### Rebuilding PCA assets from the released D-Heart package
-
-If you have the released **D-Heart** dataset package available locally, you can
-rebuild the PCA assets used by the released **D-Heart-Reg** pipeline from the
-public CAS mesh subset:
+To rebuild the D-Heart-Reg PCA assets directly from the released CAS meshes:
 
 ```bash
 python scripts/rebuild_pca_assets_from_cta1100.py \
@@ -98,7 +104,7 @@ python scripts/rebuild_pca_assets_from_cta1100.py \
   --out-dir ./PCA/pca_results
 ```
 
-The rebuilt assets include:
+The rebuilt asset directory contains:
 
 - `mean_shape.npy`
 - `pca_components.npy`
@@ -107,108 +113,84 @@ The rebuilt assets include:
 - `template_labels.npy`
 - `mean.obj`
 
-By default, `scripts/rebuild_pca_assets_from_cta1100.py` uses
-`--n-components 0.98`, i.e. it keeps the PCA components selected by the 98%
-retained-variance criterion. The released `PCA/pca_results/` asset currently
-contains 119 components. Visualizations of PC1--PC4 are compactness/shape-mode
-summaries only; D-Heart-Reg uses the retained released basis unless a smaller
-PCA asset is explicitly rebuilt.
+The rebuild script uses `--n-components 0.98` by default. The released CAS PCA
+asset retains 98% variance and contains **119 components**. PC1--PC4
+visualizations are descriptive shape-mode summaries; D-Heart-Reg uses the full
+retained basis unless another PCA asset is explicitly supplied.
 
-## Synthetic data generation and D-Heart-Reg training
+## D-Heart-Reg training
 
-The reported D-Heart-Reg objective follows the paper: vertex reconstruction
-loss plus a raw PCA-coefficient L2 regularizer. Segmentation-mask supervision
-is not used for the reported reconstruction baseline.
+The reported D-Heart-Reg objective combines template-index vertex
+reconstruction loss with an L2 regularizer on raw PCA scores. Segmentation-mask
+supervision is not part of the reported reconstruction objective.
 
-### Original lightweight workflow
-
-Generate synthetic samples:
-
-```bash
-python synth_data.py --pca-dir ./PCA/pca_results --save-dir ./synthetic --num 10000
-```
-
-Pre-train:
-
-```bash
-python train.py
-```
-
-Fine-tune:
-
-```bash
-./finetune.sh
-```
-
-### Released D-Heart-Reg reconstruction pipeline
-
-The `scripts/` directory contains a more explicit reproduction pipeline for **D-Heart-Reg** on top of the released **D-Heart** package:
-
-1. rebuild PCA assets from released D-Heart meshes,
-2. generate synthetic PCA samples,
-3. optionally warm-start on synthetic mesh samples,
-4. fine-tune on CAS with vertex loss + coefficient prior, and
-5. evaluate on the full currently released 100-case external labeled subset.
-
-Example:
+Generate 10,000 PCA-derived synthetic samples:
 
 ```bash
 python scripts/generate_synthetic_dataset_from_pca.py \
   --pca-dir ./PCA/pca_results \
-  --out-dir ./runs/dheart_reg_rebuild/synthetic \
+  --out-dir ./runs/dheart_reg/synthetic \
   --num-cases 10000
+```
 
+Run synthetic initialization:
+
+```bash
 python scripts/train_pretrain_from_synthetic.py \
-  --data-dir ./runs/dheart_reg_rebuild/synthetic \
+  --data-dir ./runs/dheart_reg/synthetic \
   --pca-dir ./PCA/pca_results \
-  --save-dir ./runs/dheart_reg_rebuild/pretrain_ckpts
+  --save-dir ./runs/dheart_reg/pretrain_ckpts
+```
 
+Fine-tune on the 1,000 CAS CTA entries:
+
+```bash
 python scripts/finetune_cta1100_cas.py \
   --image-dir "$DHEART_ROOT/img_1000" \
   --mesh-dir "$DHEART_ROOT/mesh_1000" \
   --pca-dir ./PCA/pca_results \
-  --pretrain-ckpt ./runs/dheart_reg_rebuild/pretrain_ckpts/best.pth \
-  --save-dir ./runs/dheart_reg_rebuild/finetune_ckpts \
+  --pretrain-ckpt ./runs/dheart_reg/pretrain_ckpts/best.pth \
+  --save-dir ./runs/dheart_reg/finetune_ckpts \
   --epochs 50 \
   --lr 1e-6
 ```
 
-For the full staged pipeline, see:
+The complete staged workflow is available through:
 
 - `scripts/nohup_rebuild_pipeline.sh`
 - `scripts/launch_full_rebuild_background.sh`
 
-These scripts intentionally use relative or environment-configurable paths so they can be adapted to different local setups without editing source code.
-Set `DHEART_ROOT` for one-off commands or `CTA_ROOT` for the staged shell
-pipeline; neither variable is hard-coded by the repository.
+These scripts use relative or environment-configurable paths. Set
+`DHEART_ROOT` for individual commands or `CTA_ROOT` for the staged shell
+pipeline.
 
-## Inference / demo evaluation
+## Inference
 
-`inference.py` is kept as a small demo-style entry point for **D-Heart-Reg**. It now accepts explicit CLI arguments instead of relying on hard-coded local paths.
-Any mask output from the network is an auxiliary sanity-check output and is
-not part of the reported reconstruction objective.
-
-Example:
+`inference.py` provides a lightweight D-Heart-Reg prediction and evaluation
+entry point:
 
 ```bash
 python inference.py \
   --pca-dir ./PCA/pca_results \
-  --model-weights ./finetune_ckpts/best.pth \
+  --model-weights ./runs/dheart_reg/finetune_ckpts/best.pth \
   --input-img "$DHEART_ROOT/img_1000/CAS_0001_image.nii.gz" \
   --gt-mesh "$DHEART_ROOT/mesh_1000/CAS_0001.obj" \
   --out-obj ./prediction.obj
 ```
 
-The script reports mesh metrics and writes:
+The script reports mesh metrics and writes the predicted mesh, a colored
+prediction, and an aligned reference mesh. Any mask output is an auxiliary
+sanity check and is not part of the reported D-Heart-Reg objective.
 
-- predicted mesh,
-- colored predicted mesh,
-- aligned reference mesh,
-- optional auxiliary mask arrays for sanity checks.
+## Reproducibility notes
 
-## Notes
-
-- This repository does **not** bundle private local datasets.
-- Training checkpoints are not assumed to exist by default; users should supply their own checkpoint paths.
-- The released `PCA/pca_results/` assets correspond to the released **D-Heart** morphable shape space.
-- The `scripts/` directory is the recommended starting point for reproducing the public **D-Heart-Reg** baseline on the released **D-Heart** package.
+- The repository does not bundle private or source-restricted datasets.
+- Source-derived assets remain governed by their original licenses and
+  data-use terms.
+- Training checkpoints are not assumed to exist; provide checkpoint paths
+  explicitly.
+- `PCA/pca_results/` is the canonical released morphable-model asset directory.
+- Use the scripts in `scripts/` as the primary entry point for rebuilding and
+  evaluating D-Heart-Reg.
+- Primary cross-cohort statistics should use the released 80-unique-target
+  accounting rather than treating all 100 source aliases as independent cases.
